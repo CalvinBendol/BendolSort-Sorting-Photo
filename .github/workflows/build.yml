@@ -1,0 +1,59 @@
+name: Build and Package BendolSort
+
+on:
+  push:
+    tags:
+      - 'v*' # Alur kerja ini akan berjalan otomatis setiap kali kamu membuat Git Tag baru (misal: v1.0.0)
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: BendolSort-Windows.exe
+            asset_name: BendolSort-Windows.exe
+          - os: ubuntu-latest
+            artifact_name: dist/main
+            asset_name: BendolSort-Linux
+          - os: macos-latest
+            artifact_name: dist/main
+            asset_name: BendolSort-MacOS
+
+    steps:
+    - name: Checkout Source Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        cache: 'pip'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install PyQt5 Pillow exifread pyinstaller
+
+    - name: Build Application with PyInstaller
+      run: |
+        pyinstaller --noconsole --onefile --name=BendolSort main.py
+
+    - name: Prepare Artifact Name (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        ren dist\BendolSort.exe ${{ matrix.artifact_name }}
+
+    - name: Prepare Artifact Name (Linux & MacOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        mv dist/BendolSort ${{ matrix.artifact_name }}
+
+    - name: Upload Binaries to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ${{ matrix.artifact_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
